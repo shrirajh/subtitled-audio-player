@@ -4,6 +4,10 @@ A sleek, modern web-based audio player with synchronized subtitle display. This 
 
 [Try it out here](https://shrirajh.github.io/subtitled-audio-player)
 
+## Screenshot
+![image](https://github.com/user-attachments/assets/dbea4a45-4da5-4306-92bb-75eebd8c2a3c)
+
+
 ## Features
 
 - 🎵 Clean, modern audio player interface
