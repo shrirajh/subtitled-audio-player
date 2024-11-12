@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
+    <title>Audio Player</title>
     <style>
         body, html {
             margin: 0;
@@ -536,12 +537,88 @@
             }
         }
 
+        class TitleManager {
+            constructor() {
+                this.audioTitle = "";
+                this.currentSubtitle = "";
+                this.isPlaying = false;
+            }
+
+            async setAudioTitle(file) {
+                // First try to get metadata from the audio file
+                try {
+                    const metadata = await this.getAudioMetadata(file);
+                    console.log("metadata", metadata)
+                    if (metadata && metadata.title) {
+                        this.audioTitle = metadata.title.substring(0, 10);
+                    } else {
+                        // Fallback to filename if no metadata title
+                        this.audioTitle = file.name.split('.')[0].substring(0, 10);
+                    }
+                } catch (error) {
+                    console.warn('Could not extract metadata:', error);
+                    this.audioTitle = file.name.split('.')[0].substring(0, 10);
+                }
+                this.updateTitle();
+            }
+
+            async getAudioMetadata(file) {
+                return new Promise((resolve) => {
+                    const audio = new Audio();
+                    const url = URL.createObjectURL(file);
+                    
+                    const handleMetadata = () => {
+                        const metadata = {
+                            title: audio.title || null,
+                            artist: audio.artist || null,
+                            album: audio.album || null
+                        };
+                        
+                        URL.revokeObjectURL(url);
+                        audio.removeEventListener('loadedmetadata', handleMetadata);
+                        audio.removeEventListener('error', handleError);
+                        resolve(metadata);
+                    };
+
+                    const handleError = () => {
+                        URL.revokeObjectURL(url);
+                        audio.removeEventListener('loadedmetadata', handleMetadata);
+                        audio.removeEventListener('error', handleError);
+                        resolve(null);
+                    };
+
+                    audio.addEventListener('loadedmetadata', handleMetadata);
+                    audio.addEventListener('error', handleError);
+                    audio.src = url;
+                });
+            }
+
+            setCurrentSubtitle(subtitle) {
+                if (subtitle) {
+                    const plainText = subtitle.plainText || subtitle;
+                    this.currentSubtitle = plainText;
+                    this.updateTitle();
+                }
+            }
+
+            setPlayState(isPlaying) {
+                this.isPlaying = isPlaying;
+                this.updateTitle();
+            }
+
+            updateTitle() {
+                const playIcon = this.isPlaying ? "▶" : "⏸";
+                document.title = `${playIcon} | ${this.audioTitle} | ${this.currentSubtitle}`;
+            }
+        }
+
         let subtitleCarousel;
         const audioPlayer = document.getElementById('audioPlayer');
         const fileInputs = document.getElementById('fileInputs');
         const speedControl = document.getElementById('speedControl');
         let filesSelected = { audio: false, srt: false };
         let animationFrameId = null;
+        const titleManager = new TitleManager();
 
         // New keyboard control functions
         function findNextSubtitleTime(currentTime, direction) {
@@ -601,11 +678,12 @@
             }
         });
         
-        document.getElementById('audioFile').addEventListener('change', (e) => {
+        document.getElementById('audioFile').addEventListener('change', async (e) => {
             const file = e.target.files[0];
             if (file) {
                 const url = URL.createObjectURL(file);
                 audioPlayer.src = url;
+                await titleManager.setAudioTitle(file);
                 filesSelected.audio = true;
                 checkHideInputs();
             }
@@ -637,17 +715,28 @@
         // Improved performance for subtitle updates using requestAnimationFrame
         function updateSubtitles() {
             if (subtitleCarousel) {
-                subtitleCarousel.updateSubtitle(audioPlayer.currentTime);
+                const currentTime = audioPlayer.currentTime;
+                subtitleCarousel.updateSubtitle(currentTime);
+                
+                // Update title with current subtitle
+                const currentSubtitle = subtitleCarousel.subtitles.find(
+                    sub => currentTime >= sub.start && currentTime <= sub.end
+                );
+                if (currentSubtitle) {
+                    titleManager.setCurrentSubtitle(currentSubtitle);
+                }
             }
             animationFrameId = requestAnimationFrame(updateSubtitles);
         }
         
         audioPlayer.addEventListener('play', () => {
+            titleManager.setPlayState(true);
             // Start updating subtitles when audio plays
             animationFrameId = requestAnimationFrame(updateSubtitles);
         });
 
         audioPlayer.addEventListener('pause', () => {
+            titleManager.setPlayState(false);
             // Stop updating subtitles when audio is paused
             if (animationFrameId) {
                 cancelAnimationFrame(animationFrameId);
