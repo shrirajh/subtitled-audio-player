@@ -72,6 +72,11 @@
             justify-content: center;
         }
 
+        .container.fullscreen {
+            max-width: 100%;
+            padding: 40px;
+        }
+
         .player-wrapper {
             background: rgba(25, 25, 35, 0.6);
             backdrop-filter: blur(10px);
@@ -223,7 +228,7 @@
             opacity: 1;
         }
 
-        .speed-button {
+        .speed-button, .fullscreen-button {
             background: rgba(255, 255, 255, 0.1);
             border: 1px solid rgba(255, 255, 255, 0.2);
             color: #fff;
@@ -234,7 +239,7 @@
             transition: all 0.2s ease;
         }
 
-        .speed-button:hover {
+        .speed-button:hover, .fullscreen-button:hover {
             background: rgba(255, 255, 255, 0.2);
         }
 
@@ -260,7 +265,7 @@
         }
     </style>
 </head>
-<body>
+<body id="fullscreen-container">
     <div class="background"></div>
     <div class="aurora"></div>
     <div class="container">
@@ -280,6 +285,7 @@
             <div class="subtitle-carousel" id="subtitleCarousel"></div>
 
             <div class="speed-control" id="speedControl">
+                <button class="fullscreen-button" id="fullscreenButton">⛶</button>
                 <button class="speed-button active" data-speed="1">1x</button>
                 <button class="speed-button" data-speed="1.5">1.5x</button>
                 <button class="speed-button" data-speed="2">2x</button>
@@ -659,8 +665,39 @@
                     const offset = e.key === 'ArrowRight' ? 2.5 : -2.5;
                     audioPlayer.currentTime = Math.max(0, audioPlayer.currentTime + offset);
                 }
+            } else if (e.code === 'Space') {
+                e.preventDefault();
+                if (audioPlayer.paused) {
+                    audioPlayer.play();
+                } else {
+                    audioPlayer.pause();
+                }
+            } else if (e.key.toLowerCase() === 'f') {
+                e.preventDefault();
+                toggleFullscreen();
             }
         }
+
+        // Fullscreen functionality
+        const container = document.getElementById('fullscreen-container');
+        const fullscreenButton = document.getElementById('fullscreenButton');
+
+        function toggleFullscreen() {
+            if (!document.fullscreenElement) {
+                container.requestFullscreen().catch(err => {
+                    console.error(`Error attempting to enable fullscreen: ${err.message}`);
+                });
+            } else {
+                document.exitFullscreen();
+            }
+        }
+
+        document.addEventListener('fullscreenchange', () => {
+            container.classList.toggle('fullscreen', document.fullscreenElement !== null);
+            fullscreenButton.textContent = document.fullscreenElement ? '⛶' : '⛶';
+        });
+
+        fullscreenButton.addEventListener('click', toggleFullscreen);
 
         // Add keyboard event listener
         document.addEventListener('keydown', handleKeyboardControls);
