@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            background: #000;
+            color: #fff;
+            font-family: system-ui, sans-serif;
+            overflow: hidden;
+        }
+
+        .background {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(45deg, #1a1a2e, #16213e, #1a1a2e);
+            background-size: 400% 400%;
+            animation: gradient 15s ease infinite;
+            z-index: 0;
+        }
+
+        .aurora {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            opacity: 0.5;
+            filter: blur(100px);
+            z-index: 1;
+        }
+
+        .aurora::before {
+            content: '';
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle at 50% 50%, 
+                rgba(76, 0, 255, 0.1),
+                rgba(0, 183, 255, 0.1),
+                rgba(0, 255, 200, 0.1));
+            animation: aurora 20s ease infinite;
+        }
+
+        @keyframes gradient {
+            0% { background-position: 0% 50% }
+            50% { background-position: 100% 50% }
+            100% { background-position: 0% 50% }
+        }
+
+        @keyframes aurora {
+            0% { transform: rotate(0deg) scale(1) }
+            50% { transform: rotate(180deg) scale(1.5) }
+            100% { transform: rotate(360deg) scale(1) }
+        }
+
+        .container {
+            position: relative;
+            z-index: 2;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .player-wrapper {
+            background: rgba(25, 25, 35, 0.6);
+            backdrop-filter: blur(10px);
+            padding: 30px;
+            border-radius: 16px;
+            width: 100%;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+
+        .file-inputs {
+            margin-bottom: 20px;
+            transition: opacity 0.3s ease;
+        }
+
+        .file-inputs.hidden {
+            display: none;
+        }
+
+        audio {
+            width: 100%;
+            margin-bottom: 20px;
+            border-radius: 8px;
+        }
+
+        .subtitle-carousel {
+            height: 300px;
+            position: relative;
+            overflow: hidden;
+            background: rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(5px);
+            border-radius: 8px;
+        }
+
+        .subtitle-line {
+            position: absolute;
+            width: 100%;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            transition: all 0.5s ease-out;
+            padding: 0 20px;
+            box-sizing: border-box;
+            line-height: 1.4;
+            color: rgba(255, 255, 255, 0.5);
+            font-size: 1em;
+            transform-origin: center center;
+        }
+
+        /* New styles for speaker labels and formatting */
+        .speaker-label {
+            /* color: #64B5F6; */
+            font-weight: 500;
+            margin-right: 8px;
+        }
+
+        .subtitle-line u {
+            /* color: #FFC107; */
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        /* Active line (middle) */
+        .subtitle-line.active {
+            color: #fff;
+            font-size: 1.4em;
+            font-weight: 500;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .subtitle-line.active .speaker-label {
+            color: #90CAF9;
+        }
+
+        .subtitle-line.active u {
+            color: #FFD54F;
+        }
+
+        /* Adjacent lines (one away from middle) */
+        .subtitle-line.adjacent {
+            color: rgba(255, 255, 255, 0.5);
+            font-size: 1em;
+            font-weight: normal;
+        }
+
+        /* Outer lines (two away from middle) */
+        .subtitle-line.outer {
+            color: rgba(255, 255, 255, 0.25);
+            font-size: 0.8em;
+            font-weight: normal;
+            opacity: 0.8;
+        }
+
+        .subtitle-line.hidden-top {
+            transform: translateY(-60px);
+            opacity: 0;
+        }
+
+        .subtitle-line.hidden-bottom {
+            transform: translateY(300px);
+            opacity: 0;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 10px;
+            font-weight: 500;
+            color: #fff;
+        }
+
+        input[type="file"] {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 10px;
+            border-radius: 6px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #fff;
+            width: 100%;
+            margin-bottom: 15px;
+        }
+
+        input[type="file"]::-webkit-file-upload-button {
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            color: white;
+            margin-right: 10px;
+            cursor: pointer;
+        }
+
+
+        .speed-control {
+            position: absolute;
+            top: -20px;
+            right: 20px;
+            background: rgba(25, 25, 35, 0.8);
+            backdrop-filter: blur(10px);
+            padding: 8px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .player-wrapper:hover .speed-control {
+            opacity: 1;
+        }
+
+        .speed-button {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #fff;
+            padding: 4px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9em;
+            transition: all 0.2s ease;
+        }
+
+        .speed-button:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .speed-button.active {
+            background: rgba(255, 255, 255, 0.3);
+            border-color: rgba(255, 255, 255, 0.4);
+        }
+
+        .controls-hint {
+            position: absolute;
+            bottom: -30px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 0.8em;
+            color: rgba(255, 255, 255, 0.6);
+            white-space: nowrap;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .player-wrapper:hover .controls-hint {
+            opacity: 1;
+        }
+    </style>
+</head>
+<body>
+    <div class="background"></div>
+    <div class="aurora"></div>
+    <div class="container">
+        <div class="player-wrapper">
+            <div class="file-inputs" id="fileInputs">
+                <label for="audioFile">Select Audio File:</label>
+                <input type="file" id="audioFile" accept="audio/*">
+                
+                <label for="srtFile">Select SRT Subtitle File:</label>
+                <input type="file" id="srtFile" accept=".srt">
+            </div>
+            
+            <audio id="audioPlayer" controls>
+                Your browser does not support the audio element.
+            </audio>
+            
+            <div class="subtitle-carousel" id="subtitleCarousel"></div>
+
+            <div class="speed-control" id="speedControl">
+                <button class="speed-button active" data-speed="1">1x</button>
+                <button class="speed-button" data-speed="1.5">1.5x</button>
+                <button class="speed-button" data-speed="2">2x</button>
+                <button class="speed-button" data-speed="3">3x</button>
+                <button class="speed-button" data-speed="4">4x</button>
+            </div>
+
+            <div class="controls-hint">
+                ← → : Skip 2.5s | Shift + ← → : Jump between subtitles
+            </div>
+        </div>
+    </div>
+
+    <script>
+        class SubtitleParser {
+            static parseSRT(srtContent) {
+                const subtitles = [];
+                const segments = srtContent.trim().replace(/\r/g, '').split('\n\n');
+                
+                for (const segment of segments) {
+                    const lines = segment.split('\n');
+                    if (lines.length < 3) continue;
+                    
+                    const timeString = lines[1];
+                    const [start, end] = timeString.split(' --> ').map(this.timeToSeconds);
+                    const text = lines.slice(2).join('\n');
+                    
+                    const speakerMatch = text.match(/\[(SPEAKER_\d+)\]:\s*(.*)/);
+                    let speaker = '', content = text;
+                    
+                    if (speakerMatch) {
+                        speaker = "S" + speakerMatch[1].match(/SPEAKER_(\d+)/)[1];
+                        content = speakerMatch[2].trim();
+                    }
+                    
+                    const plainText = this.stripHtml(content);
+                    
+                    subtitles.push({ 
+                        start, 
+                        end, 
+                        speaker, 
+                        text: content,
+                        plainText
+                    });
+                }
+                
+                return subtitles;
+            }
+            
+            static stripHtml(html) {
+                const temp = document.createElement('div');
+                temp.innerHTML = html;
+                return temp.textContent || temp.innerText || '';
+            }
+            
+            static timeToSeconds(timeString) {
+                const [time, ms] = timeString.split(',');
+                const [hours, minutes, seconds] = time.split(':').map(Number);
+                return hours * 3600 + minutes * 60 + seconds + Number(ms) / 1000;
+            }
+        }
+
+        class SubtitleCarousel {
+            constructor(container, subtitles) {
+                this.container = container;
+                this.subtitles = subtitles;
+                this.currentLines = [];
+                this.currentLinesObjects = [];
+                this.currentIndex = -1;
+                this.currentPlainText = '';
+                this.lineHeight = 60;
+                this.uniqueSubtitleGroups = this.generateUniqueSubtitleGroups(subtitles);
+                this.initialize();
+            }
+
+            generateUniqueSubtitleGroups(subtitles) {
+                const groups = new Map();
+                
+                subtitles.forEach(sub => {
+                    if (!groups.has(sub.plainText)) {
+                        groups.set(sub.plainText, {
+                            plainText: sub.plainText,
+                            subtitles: []
+                        });
+                    }
+                    groups.get(sub.plainText).subtitles.push(sub);
+                });
+
+                return Array.from(groups.values()).map((group, index) => ({
+                    ...group,
+                    index
+                }));
+            }
+
+            getUniqueGroupIndex(currentSubtitle) {
+                return this.uniqueSubtitleGroups.findIndex(
+                    group => group.plainText === currentSubtitle.plainText
+                );
+            }
+
+            getAdjacentGroups(currentGroupIndex, offset = 0) {
+                const groups = [];
+                // Get previous 2 groups
+                for (let i = 2; i > 0; i--) {
+                    const index = currentGroupIndex - i + offset;
+                    if (index >= 0) {
+                        groups.push(this.uniqueSubtitleGroups[index]);
+                    } else {
+                        // Push empty group for positions before the start
+                        groups.push(null);
+                    }
+                }
+                
+                // Add current group
+                const currentIndex = currentGroupIndex + offset;
+                if (currentIndex >= 0 && currentIndex < this.uniqueSubtitleGroups.length) {
+                    groups.push(this.uniqueSubtitleGroups[currentIndex]);
+                }
+                
+                // Get next 2 groups
+                for (let i = 1; i <= 2; i++) {
+                    const index = currentGroupIndex + i + offset;
+                    if (index < this.uniqueSubtitleGroups.length) {
+                        groups.push(this.uniqueSubtitleGroups[index]);
+                    }
+                }
+                
+                return groups;
+            }
+
+            initialize() {
+                for (let i = 0; i < 5; i++) {
+                    const line = document.createElement('div');
+                    line.className = 'subtitle-line';
+                    line.style.transform = `translateY(${this.getLinePosition(i)}px)`;
+                    this.updateLineStyle(line, i);
+                    this.container.appendChild(line);
+                    this.currentLines.push(line);
+                }
+            }
+
+            updateLineStyle(line, index) {
+                line.classList.remove('active', 'adjacent', 'outer');
+                
+                if (index === 2) {
+                    line.classList.add('active');
+                } else if (index === 1 || index === 3) {
+                    line.classList.add('adjacent');
+                } else {
+                    line.classList.add('outer');
+                }
+            }
+
+            getLinePosition(index) {
+                return (index - 2) * this.lineHeight + 120;
+            }
+
+            createSubtitleElement(subtitle) {
+                const container = document.createElement('div');
+                container.style.display = 'flex';
+                container.style.alignItems = 'center';
+                container.style.justifyContent = 'center';
+                container.setAttribute("data-subtitleData", JSON.stringify(subtitle));
+                
+                if (subtitle.speaker) {
+                    const speakerLabel = document.createElement('span');
+                    speakerLabel.className = 'speaker-label';
+                    speakerLabel.textContent = `[${subtitle.speaker}]:`;
+                    container.appendChild(speakerLabel);
+                }
+                
+                const textContent = document.createElement('span');
+                textContent.innerHTML = subtitle.text;
+                container.appendChild(textContent);
+                
+                return container;
+            }
+
+            updateSubtitle(currentTime) {
+                const currentSubtitle = this.subtitles.find(
+                    sub => currentTime >= sub.start && currentTime <= sub.end
+                );
+
+                if (currentSubtitle) {
+                    const currentGroupIndex = this.getUniqueGroupIndex(currentSubtitle);
+                    
+                    if (currentGroupIndex !== this.currentIndex) {
+                        this.currentIndex = currentGroupIndex;
+                        this.currentPlainText = currentSubtitle.plainText;
+                        this.advanceCarousel(currentGroupIndex);
+                    } else {
+                        this.updateActiveLineContent(currentSubtitle);
+                    }
+                }
+            }
+
+            advanceCarousel(currentGroupIndex) {
+                // Remove the top line with animation
+                const topLine = this.currentLines.shift();
+                topLine.classList.add('hidden-top');
+                setTimeout(() => topLine.remove(), 500);
+
+                // Move existing lines up
+                this.currentLines.forEach((line, index) => {
+                    line.style.transform = `translateY(${this.getLinePosition(index)}px)`;
+                    this.updateLineStyle(line, index);
+                });
+
+                // Create new line at the bottom
+                const newLine = document.createElement('div');
+                newLine.className = 'subtitle-line hidden-bottom outer';
+                
+                // Get the content for the new line
+                const futureGroups = this.getAdjacentGroups(currentGroupIndex);
+                if (futureGroups[4]) { // If we have a future group for this position
+                    const subtitleElement = this.createSubtitleElement(futureGroups[4].subtitles[0]);
+                    newLine.appendChild(subtitleElement);
+                }
+                
+                newLine.style.transform = `translateY(${this.getLinePosition(4)}px)`;
+                this.container.appendChild(newLine);
+                
+                // Trigger reflow
+                newLine.offsetHeight;
+                
+                // Show the new line
+                newLine.classList.remove('hidden-bottom');
+                this.currentLines.push(newLine);
+
+                // Update all line contents with logic to clear future subtitles above active line
+                const groups = this.getAdjacentGroups(currentGroupIndex);
+                this.currentLines.forEach((line, index) => {
+                    line.innerHTML = '';
+                    
+                    if (index < groups.length) {
+                        // Only show content for lines at or below the active line (index >= 2)
+                        // or for previous content (groups[index] time < current time)
+                        if (index >= 2 || (groups[index] && groups[index].subtitles[0].end <= groups[2].subtitles[0].start)) {
+                            if (groups[index]) {
+                                const subtitleElement = this.createSubtitleElement(groups[index].subtitles[0]);
+                                line.appendChild(subtitleElement);
+                            }
+                        }
+                    }
+                });
+            }
+
+            updateActiveLineContent(subtitle) {
+                const activeLine = this.currentLines[2];
+                if (activeLine) {
+                    activeLine.innerHTML = '';
+                    const subtitleElement = this.createSubtitleElement(subtitle);
+                    activeLine.appendChild(subtitleElement);
+                }
+            }
+        }
+
+        let subtitleCarousel;
+        const audioPlayer = document.getElementById('audioPlayer');
+        const fileInputs = document.getElementById('fileInputs');
+        const speedControl = document.getElementById('speedControl');
+        let filesSelected = { audio: false, srt: false };
+        let animationFrameId = null;
+
+        // New keyboard control functions
+        function findNextSubtitleTime(currentTime, direction) {
+            let subtitles = subtitleCarousel.subtitles;
+            if (direction === 'forward') {
+                const nextLine = JSON.parse(subtitleCarousel.currentLines[3]?.firstChild?.getAttribute("data-subtitleData") ?? "undefined");
+                if(nextLine) {
+                    return nextLine.start;
+                }
+
+                return subtitles.find(sub => sub.start > currentTime)?.start;
+            }
+            else {
+                const nextLine = JSON.parse(subtitleCarousel.currentLines[1]?.firstChild?.getAttribute("data-subtitleData") ?? "undefined");
+                if(prevLine) {
+                    return prevLine.start;
+                }
+
+                return subtitles.reverse().find(sub => sub.start < currentTime)?.start;
+            }
+        }
+
+        function handleKeyboardControls(e) {
+            if (!audioPlayer.src) return; // Don't handle keyboard events if no audio is loaded
+
+            if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+                e.preventDefault(); // Prevent default scrolling behavior
+                
+                if (e.shiftKey) {
+                    // Jump to next/previous subtitle
+                    const direction = e.key === 'ArrowRight' ? 'forward' : 'backward';
+                    const nextTime = findNextSubtitleTime(audioPlayer.currentTime, direction);
+                    if (nextTime !== undefined) {
+                        audioPlayer.currentTime = nextTime;
+                    }
+                } else {
+                    // Jump 2.5 seconds
+                    const offset = e.key === 'ArrowRight' ? 2.5 : -2.5;
+                    audioPlayer.currentTime = Math.max(0, audioPlayer.currentTime + offset);
+                }
+            }
+        }
+
+        // Add keyboard event listener
+        document.addEventListener('keydown', handleKeyboardControls);
+                
+        // Speed control handling
+        speedControl.addEventListener('click', (e) => {
+            if (e.target.classList.contains('speed-button')) {
+                const speed = parseFloat(e.target.dataset.speed);
+                audioPlayer.playbackRate = speed;
+                
+                // Update active button
+                speedControl.querySelectorAll('.speed-button').forEach(btn => {
+                    btn.classList.toggle('active', btn === e.target);
+                });
+            }
+        });
+        
+        document.getElementById('audioFile').addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const url = URL.createObjectURL(file);
+                audioPlayer.src = url;
+                filesSelected.audio = true;
+                checkHideInputs();
+            }
+        });
+        
+        document.getElementById('srtFile').addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const subtitles = SubtitleParser.parseSRT(e.target.result);
+                    subtitleCarousel = new SubtitleCarousel(
+                        document.getElementById('subtitleCarousel'),
+                        subtitles
+                    );
+                    filesSelected.srt = true;
+                    checkHideInputs();
+                };
+                reader.readAsText(file);
+            }
+        });
+        
+        function checkHideInputs() {
+            if (filesSelected.audio && filesSelected.srt) {
+                fileInputs.classList.add('hidden');
+            }
+        }
+
+        // Improved performance for subtitle updates using requestAnimationFrame
+        function updateSubtitles() {
+            if (subtitleCarousel) {
+                subtitleCarousel.updateSubtitle(audioPlayer.currentTime);
+            }
+            animationFrameId = requestAnimationFrame(updateSubtitles);
+        }
+        
+        audioPlayer.addEventListener('play', () => {
+            // Start updating subtitles when audio plays
+            animationFrameId = requestAnimationFrame(updateSubtitles);
+        });
+
+        audioPlayer.addEventListener('pause', () => {
+            // Stop updating subtitles when audio is paused
+            if (animationFrameId) {
+                cancelAnimationFrame(animationFrameId);
+                animationFrameId = null;
+            }
+        });
+        
+        audioPlayer.addEventListener('timeupdate', () => {
+            if (subtitleCarousel) {
+                subtitleCarousel.updateSubtitle(audioPlayer.currentTime);
+            }
+        });
+
+        // Clean up on page unload
+        window.addEventListener('unload', () => {
+            if (animationFrameId) {
+                cancelAnimationFrame(animationFrameId);
+            }
+        });
+    </script>
+</body>
+</html>
