@@ -632,7 +632,7 @@
                 return subtitles.find(sub => sub.start > currentTime)?.start;
             }
             else {
-                const nextLine = JSON.parse(subtitleCarousel.currentLines[1]?.firstChild?.getAttribute("data-subtitleData") ?? "undefined");
+                const prevLine = JSON.parse(subtitleCarousel.currentLines[1]?.firstChild?.getAttribute("data-subtitleData") ?? "undefined");
                 if(prevLine) {
                     return prevLine.start;
                 }
