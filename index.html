@@ -86,6 +86,11 @@
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
         }
 
+        .video-active .player-wrapper {
+            background: none;
+            backdrop-filter: initial;
+        }
+
         .file-inputs {
             margin-bottom: 20px;
             transition: opacity 0.3s ease;
@@ -95,10 +100,31 @@
             display: none;
         }
 
-        audio {
+        #audioPlayer {
             width: 100%;
             margin-bottom: 20px;
             border-radius: 8px;
+            display: none;
+        }
+
+        #audioPlayer.active {
+            display: block;
+        }
+
+        #videoPlayer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            z-index: 1;
+            background: #000;
+            display: none;
+        }
+
+        #videoPlayer.active {
+            display: block;
         }
 
         .subtitle-carousel {
@@ -108,6 +134,15 @@
             background: rgba(0, 0, 0, 0.3);
             backdrop-filter: blur(5px);
             border-radius: 8px;
+        }
+
+        .video-active .subtitle-carousel {
+            height: 100px;
+            position: absolute;
+            bottom: 100px;
+            left: 0;
+            right: 0;
+            margin: auto;
         }
 
         .subtitle-line {
@@ -127,6 +162,10 @@
             transform-origin: center center;
         }
 
+        .video-active .subtitle-line {
+            height: 20%;
+        }
+
         /* New styles for speaker labels and formatting */
         .speaker-label {
             /* color: #64B5F6; */
@@ -137,7 +176,7 @@
         .subtitle-line u {
             /* color: #FFC107; */
             text-decoration: none;
-            font-weight: 600;
+            /* font-weight: 600; */
         }
 
         /* Active line (middle) */
@@ -163,12 +202,20 @@
             font-weight: normal;
         }
 
+        .video-active .subtitle-line.adjacent {
+            color: rgba(255, 255, 255, 0.35);
+        }
+
         /* Outer lines (two away from middle) */
         .subtitle-line.outer {
             color: rgba(255, 255, 255, 0.25);
             font-size: 0.8em;
             font-weight: normal;
             opacity: 0.8;
+        }
+
+        .video-active .subtitle-line.outer {
+            color: rgba(255, 255, 255, 0.15);
         }
 
         .subtitle-line.hidden-top {
@@ -208,7 +255,6 @@
             cursor: pointer;
         }
 
-
         .speed-control {
             position: absolute;
             top: -20px;
@@ -222,6 +268,12 @@
             gap: 8px;
             opacity: 0;
             transition: opacity 0.3s ease;
+        }
+        
+        .video-active .speed-control {
+            top: initial;
+            bottom: 80px;
+            right: 0px;
         }
 
         .player-wrapper:hover .speed-control {
@@ -265,20 +317,25 @@
         }
     </style>
 </head>
-<body id="fullscreen-container">
+<body id="fullscreen-container" class="">
     <div class="background"></div>
     <div class="aurora"></div>
+            
+    <video id="videoPlayer" class="video-player" controls>
+        Your browser does not support the video element.
+    </video>
+
     <div class="container">
         <div class="player-wrapper">
             <div class="file-inputs" id="fileInputs">
-                <label for="audioFile">Select Audio File:</label>
-                <input type="file" id="audioFile" accept="audio/*">
+                <label for="mediaFile">Select Media File (Audio/Video):</label>
+                <input type="file" id="mediaFile" accept="audio/*,video/*">
                 
                 <label for="srtFile">Select SRT Subtitle File:</label>
                 <input type="file" id="srtFile" accept=".srt">
             </div>
             
-            <audio id="audioPlayer" controls>
+            <audio id="audioPlayer" class="audio-player" controls>
                 Your browser does not support the audio element.
             </audio>
             
@@ -300,6 +357,8 @@
     </div>
 
     <script>
+        let filesSelected = { media: false, audio: false, video: false, srt: false };
+
         class SubtitleParser {
             static parseSRT(srtContent) {
                 const subtitles = [];
@@ -356,34 +415,46 @@
                 this.currentLinesObjects = [];
                 this.currentIndex = -1;
                 this.currentPlainText = '';
-                this.lineHeight = 60;
                 this.uniqueSubtitleGroups = this.generateUniqueSubtitleGroups(subtitles);
                 this.initialize();
             }
 
+            get lineHeight() {
+                return this.container.clientHeight / 5;
+            }
+
             generateUniqueSubtitleGroups(subtitles) {
-                const groups = new Map();
-                
-                subtitles.forEach(sub => {
-                    if (!groups.has(sub.plainText)) {
-                        groups.set(sub.plainText, {
-                            plainText: sub.plainText,
+                const groups = [];
+                let lastSubtitle;
+
+                for(const subtitle of subtitles) {
+                    if(!groups.length || !lastSubtitle || lastSubtitle.plainText !== subtitle.plainText) {
+                        groups.push({
+                            plainText: subtitle.plainText,
+                            timeStampStart: subtitle.start,
                             subtitles: []
                         });
                     }
-                    groups.get(sub.plainText).subtitles.push(sub);
-                });
+                    
+                    const lastGroup = groups[groups.length - 1];
+                    lastGroup.subtitles.push(subtitle);
+                    lastGroup.timeStampStart = Math.min(lastGroup.timeStampStart, subtitle.start);
 
-                return Array.from(groups.values()).map((group, index) => ({
+                    lastSubtitle = subtitle;
+                }
+
+                return groups.map((group, index) => ({
                     ...group,
                     index
                 }));
             }
 
             getUniqueGroupIndex(currentSubtitle) {
-                return this.uniqueSubtitleGroups.findIndex(
+                const subGroup = this.uniqueSubtitleGroups.filter(
                     group => group.plainText === currentSubtitle.plainText
-                );
+                ).sort((a, b) => Math.abs(a.timeStampStart - currentSubtitle.start))[0];
+
+                return this.uniqueSubtitleGroups.indexOf(subGroup);
             }
 
             getAdjacentGroups(currentGroupIndex, offset = 0) {
@@ -440,7 +511,7 @@
             }
 
             getLinePosition(index) {
-                return (index - 2) * this.lineHeight + 120;
+                return index * this.lineHeight;
             }
 
             createSubtitleElement(subtitle) {
@@ -450,18 +521,84 @@
                 container.style.justifyContent = 'center';
                 container.setAttribute("data-subtitleData", JSON.stringify(subtitle));
                 
+                const contentWrapper = document.createElement('div');
+                contentWrapper.className = 'subtitle-content';
+                
                 if (subtitle.speaker) {
                     const speakerLabel = document.createElement('span');
                     speakerLabel.className = 'speaker-label';
                     speakerLabel.textContent = `[${subtitle.speaker}]:`;
-                    container.appendChild(speakerLabel);
+                    contentWrapper.appendChild(speakerLabel);
                 }
                 
                 const textContent = document.createElement('span');
                 textContent.innerHTML = subtitle.text;
-                container.appendChild(textContent);
+                contentWrapper.appendChild(textContent);
+                
+                container.appendChild(contentWrapper);
+                
+                // Add ResizeObserver to check and adjust text size
+                this.observeTextSize(container, contentWrapper);
                 
                 return container;
+            }
+
+            observeTextSize(container, contentWrapper) {
+                const observer = new ResizeObserver(() => {
+                    this.adjustTextSize(container, contentWrapper);
+                });
+                
+                observer.observe(container);
+                
+                // Initial size adjustment
+                setTimeout(() => {
+                    this.adjustTextSize(container, contentWrapper);
+                }, 0);
+            }
+
+            adjustTextSize(container, contentWrapper) {
+                function getScale(element) {
+                    return parseFloat((element.style.fontSize || "1em").replace(/[^0-9\.]/g, ""));
+                }
+
+                function setScale(element, scale) {
+                    if (scale !== null) {
+                        element.style.fontSize = `${(scale)}em`;
+                    }
+                    else {
+                        element.style.fontSize = '';
+                    }
+                }
+
+                // Reset transform to measure true height
+                setScale(contentWrapper, 1);
+                
+                while(true) {
+                    const containerHeight = container.parentElement?.parentElement?.offsetHeight ?? container.offsetHeight;
+                    const contentHeight = contentWrapper.offsetHeight;
+                    
+                    if (contentHeight > containerHeight) {
+                        // const scale = containerHeight / contentHeight;
+                        const scale = getScale(contentWrapper) - 0.05;
+                        // Limit minimum scale to 0.5 (50% of original size)
+                        const finalScale = Math.max(scale, 0.5);
+                        setScale(contentWrapper, finalScale);
+
+                        if (finalScale === 0.5) break;
+                    } else {
+                        break;
+                    }
+                }
+            }
+
+            updateActiveLineContent(subtitle) {
+                const activeLine = this.currentLines[2];
+                if (activeLine) {
+                    activeLine.innerHTML = '';
+                    const subtitleElement = this.createSubtitleElement(subtitle);
+                    activeLine.appendChild(subtitleElement);
+                    this.adjustTextSize(subtitleElement, subtitleElement.firstChild);
+                }
             }
 
             updateSubtitle(currentTime) {
@@ -483,6 +620,16 @@
             }
 
             advanceCarousel(currentGroupIndex) {
+                function setTranslateY(element, scale) {
+                    if(element.style.transform) {
+                        element.style.transform = element.style.transform.replace(/\s*translateY\([^\)]*\)\s*/g, "");
+                    }
+
+                    if (scale !== null) {
+                        element.style.transform += " translateY(" + scale + ")"
+                    }
+                }
+
                 // Remove the top line with animation
                 const topLine = this.currentLines.shift();
                 topLine.classList.add('hidden-top');
@@ -490,7 +637,7 @@
 
                 // Move existing lines up
                 this.currentLines.forEach((line, index) => {
-                    line.style.transform = `translateY(${this.getLinePosition(index)}px)`;
+                    setTranslateY(line, `${this.getLinePosition(index)}px`);
                     this.updateLineStyle(line, index);
                 });
 
@@ -505,7 +652,7 @@
                     newLine.appendChild(subtitleElement);
                 }
                 
-                newLine.style.transform = `translateY(${this.getLinePosition(4)}px)`;
+                setTranslateY(newLine, `${this.getLinePosition(4)}px`);
                 this.container.appendChild(newLine);
                 
                 // Trigger reflow
@@ -532,15 +679,6 @@
                     }
                 });
             }
-
-            updateActiveLineContent(subtitle) {
-                const activeLine = this.currentLines[2];
-                if (activeLine) {
-                    activeLine.innerHTML = '';
-                    const subtitleElement = this.createSubtitleElement(subtitle);
-                    activeLine.appendChild(subtitleElement);
-                }
-            }
         }
 
         class TitleManager {
@@ -554,7 +692,6 @@
                 // First try to get metadata from the audio file
                 try {
                     const metadata = await this.getAudioMetadata(file);
-                    console.log("metadata", metadata)
                     if (metadata && metadata.title) {
                         this.audioTitle = metadata.title.substring(0, 10);
                     } else {
@@ -570,6 +707,8 @@
 
             async getAudioMetadata(file) {
                 return new Promise((resolve) => {
+                    if (filesSelected.video) return resolve(null);
+
                     const audio = new Audio();
                     const url = URL.createObjectURL(file);
                     
@@ -620,11 +759,16 @@
 
         let subtitleCarousel;
         const audioPlayer = document.getElementById('audioPlayer');
+        const videoPlayer = document.getElementById('videoPlayer');
         const fileInputs = document.getElementById('fileInputs');
         const speedControl = document.getElementById('speedControl');
-        let filesSelected = { audio: false, srt: false };
         let animationFrameId = null;
         const titleManager = new TitleManager();
+
+        function currentPlayer() {
+            if(filesSelected.video) return videoPlayer;
+            return audioPlayer;
+        }
 
         // New keyboard control functions
         function findNextSubtitleTime(currentTime, direction) {
@@ -648,7 +792,7 @@
         }
 
         function handleKeyboardControls(e) {
-            if (!audioPlayer.src) return; // Don't handle keyboard events if no audio is loaded
+            if (!audioPlayer.src && !videoPlayer.src) return; // Don't handle keyboard events if no media is loaded
 
             if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
                 e.preventDefault(); // Prevent default scrolling behavior
@@ -656,21 +800,21 @@
                 if (e.shiftKey) {
                     // Jump to next/previous subtitle
                     const direction = e.key === 'ArrowRight' ? 'forward' : 'backward';
-                    const nextTime = findNextSubtitleTime(audioPlayer.currentTime, direction);
+                    const nextTime = findNextSubtitleTime(currentPlayer().currentTime, direction);
                     if (nextTime !== undefined) {
-                        audioPlayer.currentTime = nextTime;
+                        currentPlayer().currentTime = nextTime;
                     }
                 } else {
                     // Jump 2.5 seconds
                     const offset = e.key === 'ArrowRight' ? 2.5 : -2.5;
-                    audioPlayer.currentTime = Math.max(0, audioPlayer.currentTime + offset);
+                    currentPlayer().currentTime = Math.max(0, currentPlayer().currentTime + offset);
                 }
             } else if (e.code === 'Space') {
                 e.preventDefault();
-                if (audioPlayer.paused) {
-                    audioPlayer.play();
+                if (currentPlayer().paused) {
+                    currentPlayer().play();
                 } else {
-                    audioPlayer.pause();
+                    currentPlayer().pause();
                 }
             } else if (e.key.toLowerCase() === 'f') {
                 e.preventDefault();
@@ -706,7 +850,7 @@
         speedControl.addEventListener('click', (e) => {
             if (e.target.classList.contains('speed-button')) {
                 const speed = parseFloat(e.target.dataset.speed);
-                audioPlayer.playbackRate = speed;
+                currentPlayer().playbackRate = speed;
                 
                 // Update active button
                 speedControl.querySelectorAll('.speed-button').forEach(btn => {
@@ -715,13 +859,38 @@
             }
         });
         
-        document.getElementById('audioFile').addEventListener('change', async (e) => {
+        // Modified file input handler for media
+        document.getElementById('mediaFile').addEventListener('change', async (e) => {
             const file = e.target.files[0];
             if (file) {
                 const url = URL.createObjectURL(file);
-                audioPlayer.src = url;
+                const isVideo = file.type.startsWith('video/');
+                
+                // Show/hide appropriate player
+                if (isVideo) {
+                    videoPlayer.classList.add("active");
+                    audioPlayer.classList.remove("active");
+                    container.classList.add("video-active");
+                    container.classList.remove("audio-active");
+                }
+                else {
+                    audioPlayer.classList.add("active");
+                    videoPlayer.classList.remove("active");
+                    container.classList.add("audio-active");
+                    container.classList.remove("video-active");
+                }
+                
+                // Set the source
+                filesSelected.media = true;
+                filesSelected.audio = !isVideo;
+                filesSelected.video = isVideo;
+                if (isVideo) {
+                    videoPlayer.src = url;
+                } else {
+                    audioPlayer.src = url;
+                }
+                
                 await titleManager.setAudioTitle(file);
-                filesSelected.audio = true;
                 checkHideInputs();
             }
         });
@@ -744,7 +913,7 @@
         });
         
         function checkHideInputs() {
-            if (filesSelected.audio && filesSelected.srt) {
+            if (filesSelected.media && filesSelected.srt) {
                 fileInputs.classList.add('hidden');
             }
         }
@@ -752,7 +921,7 @@
         // Improved performance for subtitle updates using requestAnimationFrame
         function updateSubtitles() {
             if (subtitleCarousel) {
-                const currentTime = audioPlayer.currentTime;
+                const currentTime = currentPlayer().currentTime;
                 subtitleCarousel.updateSubtitle(currentTime);
                 
                 // Update title with current subtitle
@@ -765,6 +934,27 @@
             }
             animationFrameId = requestAnimationFrame(updateSubtitles);
         }
+        
+        videoPlayer.addEventListener('play', () => {
+            titleManager.setPlayState(true);
+            // Start updating subtitles when audio plays
+            animationFrameId = requestAnimationFrame(updateSubtitles);
+        });
+
+        videoPlayer.addEventListener('pause', () => {
+            titleManager.setPlayState(false);
+            // Stop updating subtitles when audio is paused
+            if (animationFrameId) {
+                cancelAnimationFrame(animationFrameId);
+                animationFrameId = null;
+            }
+        });
+        
+        videoPlayer.addEventListener('timeupdate', () => {
+            if (subtitleCarousel) {
+                subtitleCarousel.updateSubtitle(videoPlayer.currentTime);
+            }
+        });
         
         audioPlayer.addEventListener('play', () => {
             titleManager.setPlayState(true);
