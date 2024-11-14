@@ -461,11 +461,19 @@
             }
 
             getUniqueGroupIndex(currentSubtitle) {
-                const subGroup = this.uniqueSubtitleGroups.filter(
+                const matchingGroups = this.uniqueSubtitleGroups.filter(
                     group => group.plainText === currentSubtitle.plainText
-                ).sort((a, b) => Math.abs(a.timeStampStart - currentSubtitle.start))[0];
+                );
+                
+                if (matchingGroups.length === 0) {
+                    return -1;
+                }
 
-                return this.uniqueSubtitleGroups.indexOf(subGroup);
+                const closestMatch = matchingGroups.sort(
+                    (a, b) => Math.abs(a.timeStampStart - currentSubtitle.start) - Math.abs(b.timeStampStart - currentSubtitle.start)
+                )[0];
+
+                return this.uniqueSubtitleGroups.indexOf(closestMatch);
             }
 
             getAdjacentGroups(currentGroupIndex, offset = 0) {
