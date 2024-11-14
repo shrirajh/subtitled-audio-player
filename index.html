@@ -168,7 +168,7 @@
             box-sizing: border-box;
             line-height: 1.4;
             color: rgba(255, 255, 255, 0.5);
-            font-size: 1em;
+            font-size: 1.4em;
             transform-origin: center center;
         }
 
@@ -192,7 +192,8 @@
         /* Active line (middle) */
         .subtitle-line.active {
             color: #fff;
-            font-size: 1.4em;
+            scale: 1;
+            filter: blur(0px);
             font-weight: 500;
             text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
         }
@@ -208,7 +209,8 @@
         /* Adjacent lines (one away from middle) */
         .subtitle-line.adjacent {
             color: rgba(255, 255, 255, 0.5);
-            font-size: 1em;
+            scale: 0.65;
+            filter: blur(1px);
             font-weight: normal;
         }
 
@@ -219,7 +221,8 @@
         /* Outer lines (two away from middle) */
         .subtitle-line.outer {
             color: rgba(255, 255, 255, 0.25);
-            font-size: 0.8em;
+            scale: 0.5;
+            filter: blur(2px);
             font-weight: normal;
             opacity: 0.8;
         }
@@ -510,7 +513,7 @@
                 for (let i = 0; i < 5; i++) {
                     const line = document.createElement('div');
                     line.className = 'subtitle-line';
-                    line.style.transform = `translateY(${this.getLinePosition(i)}px)`;
+                    line.style.translate = `0px ${this.getLinePosition(i)}px`;
                     this.updateLineStyle(line, i);
                     this.container.appendChild(line);
                     this.currentLines.push(line);
@@ -640,13 +643,7 @@
 
             advanceCarousel(currentGroupIndex) {
                 function setTranslateY(element, scale) {
-                    if(element.style.transform) {
-                        element.style.transform = element.style.transform.replace(/\s*translateY\([^\)]*\)\s*/g, "");
-                    }
-
-                    if (scale !== null) {
-                        element.style.transform += " translateY(" + scale + ")"
-                    }
+                    element.style.translate = "0px " + scale
                 }
 
                 // Remove the top line with animation
