@@ -1,0 +1,326 @@
+body, html {
+    margin: 0;
+    padding: 0;
+    height: 100vh;
+    background: #000;
+    color: #fff;
+    font-family: system-ui, sans-serif;
+    overflow: hidden;
+}
+
+.background {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(45deg, #1a1a2e, #16213e, #1a1a2e);
+    background-size: 400% 400%;
+    animation: gradient 15s ease infinite;
+    z-index: 0;
+}
+
+.aurora {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    opacity: 0.5;
+    filter: blur(100px);
+    z-index: 1;
+}
+
+.aurora::before {
+    content: '';
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    background: radial-gradient(circle at 50% 50%, 
+        rgba(76, 0, 255, 0.1),
+        rgba(0, 183, 255, 0.1),
+        rgba(0, 255, 200, 0.1));
+    animation: aurora 20s ease infinite;
+}
+
+@keyframes gradient {
+    0% { background-position: 0% 50% }
+    50% { background-position: 100% 50% }
+    100% { background-position: 0% 50% }
+}
+
+@keyframes aurora {
+    0% { transform: rotate(0deg) scale(1) }
+    50% { transform: rotate(180deg) scale(1.5) }
+    100% { transform: rotate(360deg) scale(1) }
+}
+
+.container {
+    position: relative;
+    z-index: 2;
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 20px;
+    height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.video-active .container {
+    pointer-events: none;
+}
+
+.container.fullscreen {
+    max-width: 100%;
+    padding: 40px;
+}
+
+.player-wrapper {
+    background: rgba(25, 25, 35, 0.6);
+    backdrop-filter: blur(10px);
+    padding: 30px;
+    border-radius: 16px;
+    width: 100%;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+.video-active .player-wrapper {
+    background: none;
+    backdrop-filter: initial;
+    box-shadow: initial;
+}
+
+.file-inputs {
+    margin-bottom: 20px;
+    transition: opacity 0.3s ease;
+}
+
+.video-active .file-inputs {
+    pointer-events: initial;
+}
+
+.file-inputs.hidden {
+    display: none;
+}
+
+#audioPlayer {
+    width: 100%;
+    margin-bottom: 20px;
+    border-radius: 8px;
+    display: none;
+}
+
+#audioPlayer.active {
+    display: block;
+}
+
+#videoPlayer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    z-index: 1;
+    background: #000;
+    display: none;
+}
+
+#videoPlayer.active {
+    display: block;
+}
+
+.subtitle-carousel {
+    height: 300px;
+    position: relative;
+    overflow: hidden;
+    background: rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(5px);
+    border-radius: 8px;
+}
+
+.video-active .subtitle-carousel {
+    height: 100px;
+    position: absolute;
+    bottom: 100px;
+    left: 0;
+    right: 0;
+    margin: auto;
+    pointer-events: initial;
+}
+
+.subtitle-line {
+    position: absolute;
+    width: 100%;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    transition: all 0.5s ease-out;
+    padding: 0 20px;
+    box-sizing: border-box;
+    line-height: 1.4;
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 1.4em;
+    transform-origin: center center;
+}
+
+.video-active .subtitle-line {
+    height: 20%;
+}
+
+/* New styles for speaker labels and formatting */
+.speaker-label {
+    /* color: #64B5F6; */
+    font-weight: 500;
+    margin-right: 8px;
+}
+
+.subtitle-line u {
+    /* color: #FFC107; */
+    text-decoration: none;
+    /* font-weight: 600; */
+}
+
+/* Active line (middle) */
+.subtitle-line.active {
+    color: #fff;
+    scale: 1;
+    filter: blur(0px);
+    font-weight: 500;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.subtitle-line.active .speaker-label {
+    color: #90CAF9;
+}
+
+.subtitle-line.active u {
+    color: #FFD54F;
+}
+
+/* Adjacent lines (one away from middle) */
+.subtitle-line.adjacent {
+    color: rgba(255, 255, 255, 0.5);
+    scale: 0.65;
+    filter: blur(1px);
+    font-weight: normal;
+}
+
+.video-active .subtitle-line.adjacent {
+    color: rgba(255, 255, 255, 0.35);
+}
+
+/* Outer lines (two away from middle) */
+.subtitle-line.outer {
+    color: rgba(255, 255, 255, 0.25);
+    scale: 0.5;
+    filter: blur(2px);
+    font-weight: normal;
+    opacity: 0.8;
+}
+
+.video-active .subtitle-line.outer {
+    color: rgba(255, 255, 255, 0.15);
+}
+
+.subtitle-line.hidden-top {
+    transform: translateY(-60px);
+    opacity: 0;
+}
+
+.subtitle-line.hidden-bottom {
+    transform: translateY(300px);
+    opacity: 0;
+}
+
+label {
+    display: block;
+    margin-bottom: 10px;
+    font-weight: 500;
+    color: #fff;
+}
+
+input[type="file"] {
+    background: rgba(255, 255, 255, 0.1);
+    padding: 10px;
+    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: #fff;
+    width: 100%;
+    margin-bottom: 15px;
+}
+
+input[type="file"]::-webkit-file-upload-button {
+    background: rgba(255, 255, 255, 0.2);
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    color: white;
+    margin-right: 10px;
+    cursor: pointer;
+}
+
+.speed-control {
+    position: absolute;
+    top: -20px;
+    right: 20px;
+    background: rgba(25, 25, 35, 0.8);
+    backdrop-filter: blur(10px);
+    padding: 8px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.video-active .speed-control {
+    top: initial;
+    bottom: 80px;
+    right: 0px;
+    pointer-events: initial;
+}
+
+.player-wrapper:hover .speed-control {
+    opacity: 1;
+}
+
+.speed-button, .fullscreen-button {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: #fff;
+    padding: 4px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.9em;
+    transition: all 0.2s ease;
+}
+
+.speed-button:hover, .fullscreen-button:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.speed-button.active {
+    background: rgba(255, 255, 255, 0.3);
+    border-color: rgba(255, 255, 255, 0.4);
+}
+
+.controls-hint {
+    position: absolute;
+    bottom: -30px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 0.8em;
+    color: rgba(255, 255, 255, 0.6);
+    white-space: nowrap;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.player-wrapper:hover .controls-hint {
+    opacity: 1;
+}
