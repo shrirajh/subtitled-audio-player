@@ -15,11 +15,19 @@ class SubtitleParser {
             );
             const text = lines.slice(2).join("\n");
 
-            const speakerMatch = text.match(/\[(SPEAKER_\d+)\]:\s*(.*)/);
+            const speakerMatch = text.match(/\[([^\]]+)\]:\s*(.*)/);
             let speaker = "", content = text;
 
             if (speakerMatch) {
-                speaker = "S" + speakerMatch[1].match(/SPEAKER_(\d+)/)[1];
+                const speakerText = speakerMatch[1];
+                // Check if it's a SPEAKER_number format (case insensitive)
+                const speakerNumberMatch = speakerText.match(/^speaker[_\-\s]?(\d+)$/i);
+                if (speakerNumberMatch) {
+                    speaker = "S" + speakerNumberMatch[1];
+                } else {
+                    // Use the actual name as-is
+                    speaker = speakerText;
+                }
                 content = speakerMatch[2].trim();
             }
 
